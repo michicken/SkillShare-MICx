@@ -62,6 +62,8 @@ public class SkillShareCore {
     private static final long JOIN_ACK_TIMEOUT_MS = 4000L;
     private static final long HEARTBEAT_INTERVAL_MS = 5000L;
     private static final int INBOUND_BUDGET_PER_TICK = 256;
+    /** 入房后延迟公布共享玩家列表，等服务端把同房队友聚齐，避免开局只有自己。 */
+    private static final long ROOM_ANNOUNCE_DELAY_MS = 2000L;
 
     private final Gson gson = new Gson();
     private final SkillShareClient client = new SkillShareClient();
@@ -84,6 +86,8 @@ public class SkillShareCore {
 
     /** 本局入房后是否已打印过共享玩家列表（一次会话只打印一次）。 */
     private boolean roomJoinAnnounced = false;
+    /** 入房后延迟公布的时刻；0 = 尚未调度。 */
+    private long roomJoinAnnounceAt = 0L;
     /** 语言不匹配提示每局只弹一次。 */
     private boolean languagePromptShown = false;
     private net.minecraft.world.World languageWorld;
@@ -187,6 +191,13 @@ public class SkillShareCore {
         // 2. 处理入站消息
         processInbound();
 
+        // 2.5 延迟公布共享玩家列表：等 room 成员聚齐后再打印（避免开局只有自己）
+        if (joined && !roomJoinAnnounced && roomJoinAnnounceAt > 0L && now >= roomJoinAnnounceAt) {
+            roomJoinAnnounced = true;
+            roomJoinAnnounceAt = 0L;
+            announceRoomJoin();
+        }
+
         // 3. 本地槽位观察（自己的技能 CD）
         observeLocalSkill(mc.thePlayer, now);
 
@@ -276,9 +287,9 @@ public class SkillShareCore {
                     }
                     joined = selfName != null && roomMembers.contains(selfName);
                     if (joined) pendingJoinAt = 0L;
-                    if (joined && !roomJoinAnnounced) {
-                        roomJoinAnnounced = true;
-                        announceRoomJoin();
+                    if (joined && !roomJoinAnnounced && roomJoinAnnounceAt == 0L) {
+                        // 开局入房后延迟公布：等服务端把同房队友都聚齐，避免开局只有自己的假象
+                        roomJoinAnnounceAt = System.currentTimeMillis() + ROOM_ANNOUNCE_DELAY_MS;
                     }
                     // 只保留在房内的队友技能状态
                     java.util.Iterator<Map.Entry<String, TeammateSkill>> it = teammateSkills.entrySet().iterator();
@@ -437,5 +448,6 @@ public class SkillShareCore {
         roomMembers.clear();
         teammateSkills.clear();
         roomJoinAnnounced = false;
+        roomJoinAnnounceAt = 0L;
     }
 }
