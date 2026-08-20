@@ -243,11 +243,3 @@ ws.send({type:"lr_release", name:me, struck_count:n});   // 或 struck_name
 ws.send({type:"heal_release", healer: meOrHealerName, released: Date.now()});
 ```
 
----
-
-## 6. 给服务端维护者的开放建议
-
-1. **限频**：按连接/IP 限制 `join`/`state` 发送速率，防第三方刷屏。
-2. **roster 校验**：校验 `roster` 是否含大量无效名，防空房间滥用。
-3. **token 绑定**：目前 token 与玩家身份绑定较弱，对外可考虑把 `self` 写进 token 校验。
-4. **去重**：`heal_release` 用 `healer + 时间窗` 在服务端做幂等去重。
