@@ -1,0 +1,25 @@
+pluginManagement {
+    repositories {
+        // ForgeGradle fork（ccbluex a3d86a59c0）本地持久安装（JitPack 404 已知问题）：
+        // jar+pom 在 ~/.m2/repository/com/github/ccbluex/ForgeGradle/a3d86a59c0/
+        mavenLocal()
+
+        // 国内镜像优先：maven.minecraftforge.net 在国内常被墙/挂死，走 BMCLAPI + 阿里云
+        maven { url = "https://bmclapi2.bangbang93.com/maven/" }
+        maven { url = "https://maven.aliyun.com/repository/public/" }
+        mavenCentral()
+        gradlePluginPortal()
+        maven { url = "https://maven.minecraftforge.net/" }
+        maven { url = "https://jitpack.io/" }
+    }
+    resolutionStrategy {
+        eachPlugin {
+            if (requested.id.id == "net.minecraftforge.gradle.forge") {
+                // ccbluex's fork is compatible with Gradle 6 (we ship fdp-client's 6.9.4 wrapper).
+                useModule("com.github.ccbluex:ForgeGradle:a3d86a59c0")
+            }
+        }
+    }
+}
+
+rootProject.name = 'SkillShare-MICx'

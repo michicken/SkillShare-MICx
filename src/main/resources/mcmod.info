@@ -1,0 +1,16 @@
+[
+{
+  "modid": "skillshare_micx",
+  "name": "SkillShare",
+  "description": "Client-side 1.8.9 mod for Hypixel Zombies: shares Lightning Rod/Heal cooldown via WebSocket and prints [SkillShare] LR-hit chat events.",
+  "version": "${version}",
+  "mcversion": "${mcversion}",
+  "url": "",
+  "updateUrl": "",
+  "authorList": ["MICx"],
+  "credits": "",
+  "logoFile": "",
+  "screenshots": [],
+  "dependencies": []
+}
+]

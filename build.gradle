@@ -1,0 +1,61 @@
+plugins {
+    id "java"
+    id "net.minecraftforge.gradle.forge"
+}
+
+version = "1.3.0"
+group = "dev.skillshare"
+archivesBaseName = "SkillShare-MICx"
+
+sourceCompatibility = targetCompatibility = 1.8
+compileJava.options.encoding = "UTF-8"
+
+repositories {
+    // 国内镜像优先：ForgeGradle 会自动加 maven.minecraftforge.net（国内常挂死），
+    // 把 BMCLAPI（专镜像 forge/mcp）+ 阿里云放最前，避免依赖拉取卡死
+    maven { url = "https://bmclapi2.bangbang93.com/maven/" }
+    maven { url = "https://maven.aliyun.com/repository/public/" }
+    mavenCentral()
+    maven { url = "https://maven.minecraftforge.net/" }
+    maven { url = "https://jitpack.io/" }
+}
+
+minecraft {
+    version = "1.8.9-11.15.1.2318-1.8.9"
+    runDir = "run"
+    mappings = "stable_22"
+    makeObfSourceJar = false
+}
+
+processResources {
+    inputs.property "version", project.version
+    inputs.property "mcversion", project.minecraft.version
+
+    from(sourceSets.main.resources.srcDirs) {
+        include 'mcmod.info'
+        expand 'version': project.version, 'mcversion': project.minecraft.version
+    }
+
+    from(sourceSets.main.resources.srcDirs) {
+        exclude 'mcmod.info'
+    }
+}
+
+dependencies {
+    // 轻量纯 Java WebSocket 客户端，打包进 jar
+    compile 'com.neovisionaries:nv-websocket-client:2.14'
+    testCompile 'junit:junit:4.13.2'
+}
+
+jar {
+    manifest {
+        attributes(
+            "ModSide": "CLIENT"
+        )
+    }
+
+    // 依赖打进 jar（本 mod 类 + nv-websocket-client），打成 fat jar
+    from {
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+}
