@@ -64,6 +64,15 @@ public class ZbSidebar {
         return false;
     }
 
+    /** 高置信中文局信号：本地化计分板写 "地图：外星游乐园"，开局前即可检测到。 */
+    public boolean isChineseAlienArcadium() {
+        if (map != null && map.contains(CHINESE_AA_MAP)) return true;
+        for (String line : lines) {
+            if (line != null && line.contains(CHINESE_AA_MAP)) return true;
+        }
+        return false;
+    }
+
     /** 玩家行状态：alive / down / dead / quit；侧边栏没有该玩家行时返回 null。 */
     public String playerStatus(String name) {
         if (name == null || name.isEmpty()) return null;

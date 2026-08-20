@@ -5,19 +5,24 @@ import com.google.gson.JsonObject;
 
 import dev.skillshare.net.SkillShareClient;
 import dev.skillshare.net.TokenProvider;
+import dev.skillshare.roster.ZbSidebar;
 import dev.skillshare.roster.ZombiesTracker;
 import dev.skillshare.skill.TeamSkillTracker;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.init.Items;
 import net.minecraft.item.ItemStack;
+import net.minecraft.event.ClickEvent;
+import net.minecraft.event.HoverEvent;
 import net.minecraft.util.ChatComponentText;
+import net.minecraft.util.ChatStyle;
 import net.minecraft.util.EnumChatFormatting;
 import net.minecraftforge.client.event.ClientChatReceivedEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.fml.common.eventhandler.SubscribeEvent;
 import net.minecraftforge.fml.common.gameevent.TickEvent;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -76,6 +81,13 @@ public class SkillShareCore {
     private long pendingJoinAt = 0L;
     private long stateSeq = 0L;
     private net.minecraft.world.World skillWorld;
+
+    /** 本局入房后是否已打印过共享玩家列表（一次会话只打印一次）。 */
+    private boolean roomJoinAnnounced = false;
+    /** 语言不匹配提示每局只弹一次。 */
+    private boolean languagePromptShown = false;
+    private net.minecraft.world.World languageWorld;
+    private int tickCounter = 0;
 
     /** 队友技能状态：仅落内存，不渲染。 */
     private static final class TeammateSkill {
@@ -162,6 +174,9 @@ public class SkillShareCore {
             roomMembers.clear();
             lastRosterCheck = 0L;
         }
+
+        // 0.5 语言不匹配检测（中文 AA 局 → 点击切换英文）
+        if (++tickCounter % 10 == 0) checkLanguageAndPrompt(mc);
 
         // 1. 心跳
         if (now - lastHeartbeat >= HEARTBEAT_INTERVAL_MS) {
@@ -261,6 +276,10 @@ public class SkillShareCore {
                     }
                     joined = selfName != null && roomMembers.contains(selfName);
                     if (joined) pendingJoinAt = 0L;
+                    if (joined && !roomJoinAnnounced) {
+                        roomJoinAnnounced = true;
+                        announceRoomJoin();
+                    }
                     // 只保留在房内的队友技能状态
                     java.util.Iterator<Map.Entry<String, TeammateSkill>> it = teammateSkills.entrySet().iterator();
                     while (it.hasNext()) {
@@ -371,11 +390,52 @@ public class SkillShareCore {
         mc.thePlayer.addChatMessage(new ChatComponentText(sb.toString()));
     }
 
+    /** 聊天栏打印 "[SkillShare] 本局有 N 位玩家共享技能：<名字列表>"（仅自己可见）。 */
+    private void announceRoomJoin() {
+        Minecraft mc = Minecraft.getMinecraft();
+        if (mc.thePlayer == null || roomMembers.isEmpty()) return;
+        List<String> sorted = new ArrayList<String>(roomMembers);
+        java.util.Collections.sort(sorted);
+        StringBuilder sb = new StringBuilder();
+        sb.append(EnumChatFormatting.GOLD).append("[SkillShare] ")
+          .append(EnumChatFormatting.YELLOW).append("本局有 ")
+          .append(EnumChatFormatting.AQUA).append(sorted.size())
+          .append(EnumChatFormatting.YELLOW).append(" 位玩家共享技能：")
+          .append(EnumChatFormatting.WHITE).append(String.join(", ", sorted));
+        mc.thePlayer.addChatMessage(new ChatComponentText(sb.toString()));
+    }
+
+    /** 检测中文 AA 局（语言不匹配），每局弹一次点击切换到英文的提示。 */
+    private void checkLanguageAndPrompt(Minecraft mc) {
+        if (mc.theWorld != languageWorld) {
+            languageWorld = mc.theWorld;
+            languagePromptShown = false;
+        }
+        if (!ZbSidebar.read(mc).isChineseAlienArcadium()) return;
+        if (languagePromptShown) return;
+        languagePromptShown = true;
+        showLanguagePrompt(mc);
+    }
+
+    private void showLanguagePrompt(Minecraft mc) {
+        ChatComponentText message = new ChatComponentText(
+                "§8[§6SkillShare§8] §e您当前游戏为中文模式！§cSkillShare 不在中文模式下起效，§f请点击切换为英文模式 ");
+        ChatComponentText action = new ChatComponentText("§a§l[切换英文]");
+        ChatStyle style = new ChatStyle()
+                .setChatClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND, "/lang english"))
+                .setChatHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                        new ChatComponentText("§e点击执行 /lang english")));
+        action.setChatStyle(style);
+        message.appendSibling(action);
+        mc.thePlayer.addChatMessage(message);
+    }
+
     private void resetSession() {
         joined = false;
         pendingJoinAt = 0L;
         lastRoster.clear();
         roomMembers.clear();
         teammateSkills.clear();
+        roomJoinAnnounced = false;
     }
 }
